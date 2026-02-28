@@ -1,0 +1,2 @@
+fn(State<AppState>, Json<SaveConfigReq>) -> impl std::future::Future<Output = Json<ApiResponse<std::string::String>>> {save_config}
+fn(State<AppState>, Json<SaveConfigReq>) -> impl std::future::Future<Output = Json<ApiResponse<std::string::String>>> {save_config}: Handler<_, _>

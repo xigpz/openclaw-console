@@ -1,0 +1,2 @@
+fn(State<AppState>, Json<SaveModelReq>) -> impl std::future::Future<Output = Json<ApiResponse<Model>>> {save_model}
+fn(State<AppState>, Json<SaveModelReq>) -> impl std::future::Future<Output = Json<ApiResponse<Model>>> {save_model}: Handler<_, _>

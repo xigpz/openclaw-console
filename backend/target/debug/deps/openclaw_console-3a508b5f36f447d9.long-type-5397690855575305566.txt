@@ -1,0 +1,2 @@
+fn(State<AppState>, axum::extract::Path<std::string::String>) -> impl std::future::Future<Output = Json<ApiResponse<std::option::Option<Platform>>>> {get_platform}
+fn(State<AppState>, axum::extract::Path<std::string::String>) -> impl std::future::Future<Output = Json<ApiResponse<std::option::Option<Platform>>>> {get_platform}: Handler<_, _>

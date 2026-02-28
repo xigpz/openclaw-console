@@ -1,0 +1,2 @@
+fn(State<AppState>) -> impl std::future::Future<Output = Json<ApiResponse<Vec<Platform>>>> {list_platforms}
+fn(State<AppState>) -> impl std::future::Future<Output = Json<ApiResponse<Vec<Platform>>>> {list_platforms}: Handler<_, _>

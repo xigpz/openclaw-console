@@ -1,0 +1,2 @@
+fn(State<AppState>, Json<SavePlatformReq>) -> impl std::future::Future<Output = Json<ApiResponse<std::string::String>>> {save_platform}
+fn(State<AppState>, Json<SavePlatformReq>) -> impl std::future::Future<Output = Json<ApiResponse<std::string::String>>> {save_platform}: Handler<_, _>

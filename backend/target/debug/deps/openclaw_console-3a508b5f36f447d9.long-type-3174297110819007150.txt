@@ -1,0 +1,2 @@
+fn(State<AppState>, Json<InstallSkillReq>) -> impl std::future::Future<Output = Json<ApiResponse<std::string::String>>> {install_skill}
+fn(State<AppState>, Json<InstallSkillReq>) -> impl std::future::Future<Output = Json<ApiResponse<std::string::String>>> {install_skill}: Handler<_, _>

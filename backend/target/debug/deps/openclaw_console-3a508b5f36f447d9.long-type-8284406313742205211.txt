@@ -1,0 +1,2 @@
+fn(State<AppState>) -> impl std::future::Future<Output = Json<ApiResponse<Vec<Skill>>>> {list_skills}
+fn(State<AppState>) -> impl std::future::Future<Output = Json<ApiResponse<Vec<Skill>>>> {list_skills}: Handler<_, _>
