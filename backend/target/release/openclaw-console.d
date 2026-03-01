@@ -1,0 +1,1 @@
+/root/.openclaw/workspace/openclaw-console/backend/target/release/openclaw-console: /root/.openclaw/workspace/openclaw-console/backend/src/api.rs /root/.openclaw/workspace/openclaw-console/backend/src/db.rs /root/.openclaw/workspace/openclaw-console/backend/src/main.rs /root/.openclaw/workspace/openclaw-console/backend/src/memory.rs

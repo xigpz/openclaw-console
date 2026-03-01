@@ -15,7 +15,7 @@ export default function SkillPanel() {
   const loadSkills = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8080/api/skills');
+      const res = await fetch('/api/skills');
       const data: ApiResponse<Skill[]> = await res.json();
       if (data.success) {
         setSkills(data.data);
@@ -30,7 +30,7 @@ export default function SkillPanel() {
     if (!installName || !installSpec) return;
     setInstalling(true);
     try {
-      await fetch('http://localhost:8080/api/skills/install', {
+      await fetch('/api/skills/install', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: installName, spec: installSpec }),

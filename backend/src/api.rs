@@ -218,11 +218,18 @@ pub async fn list_models(State(state): State<AppState>) -> Json<ApiResponse<Vec<
         .unwrap();
     let models: Vec<Model> = stmt
         .query_map([], |row| {
+            let mut api_key: Option<String> = row.get(3).ok();
+            // 从环境变量读取API Key
+            if let Ok(env_key) = std::env::var("OPENCLAW_MINIMAX_API_KEY") {
+                if !env_key.is_empty() {
+                    api_key = Some(env_key);
+                }
+            }
             Ok(Model {
                 id: row.get(0)?,
                 name: row.get(1)?,
                 provider: row.get(2)?,
-                api_key: row.get(3).ok(),
+                api_key,
                 base_url: row.get(4).ok(),
                 model_id: row.get(5).ok(),
                 enabled: row.get::<_, i32>(6)? == 1,
@@ -337,7 +344,7 @@ pub async fn list_skills(State(state): State<AppState>) -> Json<ApiResponse<Vec<
 pub struct InstallSkillReq {
     pub name: String,
     pub source: Option<String>,
-    pub spec: String,
+    pub spec: Option<String>,
 }
 
 pub async fn install_skill(
@@ -350,7 +357,7 @@ pub async fn install_skill(
 
     match db.execute(
         "INSERT OR REPLACE INTO skills (name, source, spec, installed, enabled, created_at, updated_at) VALUES (?1, ?2, ?3, 1, 1, ?4, ?4)",
-        rusqlite::params![req.name, source, req.spec, now],
+        rusqlite::params![req.name, source, req.spec.unwrap_or_else(|| "".to_string()), now],
     ) {
         Ok(_) => ok_response("ok".to_string()),
         Err(e) => err_response(&format!("安装失败: {}", e)),
@@ -528,4 +535,273 @@ pub async fn openclaw_update() -> Json<ApiResponse<String>> {
             err_response(&format!("执行更新失败: {}", e))
         }
     }
+}
+
+pub async fn get_logs() -> Json<ApiResponse<Vec<String>>> {
+    let mut logs: Vec<String> = Vec::new();
+    let session_file = "/root/.openclaw/agents/main/sessions/5808c42e-c301-469d-9a65-9ffc506090b2.jsonl";
+    if let Ok(content) = std::fs::read_to_string(session_file) {
+        for line in content.lines().rev().take(100) {
+            if !line.is_empty() {
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
+                    if json.get("type").and_then(|v| v.as_str()).unwrap_or("") == "message" {
+                        if let Some(msg_obj) = json.get("message").and_then(|v| v.as_object()) {
+                            let role = msg_obj.get("role").and_then(|v| v.as_str()).unwrap_or("");
+                            if let Some(content_arr) = msg_obj.get("content").and_then(|v| v.as_array()) {
+                                for item in content_arr {
+                                    if let Some(text) = item.get("text").and_then(|v| v.as_str()) {
+                                        let ts_raw = json.get("timestamp").and_then(|v| v.as_str()).unwrap_or("");
+                                        let ts = if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(ts_raw) {
+                                            let cst = dt.with_timezone(&chrono::FixedOffset::east(8 * 3600));
+                                            cst.format("%Y-%m-%d %H:%M:%S").to_string()
+                                        } else {
+                                            ts_raw[..19].replace("T", " ").to_string()
+                                        };
+                                        logs.push(format!("[{}] {}: {}", ts, role, text.chars().take(150).collect::<String>()));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    logs.reverse();
+    ok_response(logs)
+}
+
+pub async fn backup_config() -> Json<ApiResponse<String>> {
+    let config_path = "/root/.openclaw/openclaw.json";
+    let db_path = "/root/.openclaw/workspace/openclaw-console/backend/openclaw_console.db";
+    
+    let mut backup = serde_json::json!({
+        "version": "1.0",
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+        "config": {},
+        "database": {}
+    });
+    
+    // 读取config
+    if let Ok(content) = std::fs::read_to_string(config_path) {
+        if let Ok(v) = serde_json::from_str(&content) {
+            backup["config"] = v;
+        }
+    }
+    
+    // 读取数据库
+    if let Ok(content) = std::fs::read_to_string(db_path) {
+        backup["database"] = serde_json::json!(content);
+    }
+    
+    let filename = format!("openclaw-backup-{}.json", chrono::Utc::now().format("%Y%m%d-%H%M%S"));
+    if std::fs::write(&filename, backup.to_string()).is_ok() {
+        ok_response(filename)
+    } else {
+        err_response("备份失败")
+    }
+}
+
+pub async fn get_system_status() -> Json<ApiResponse<serde_json::Value>> {
+    let mut status = serde_json::json!({});
+    
+    // CPU
+    if let Ok(content) = std::fs::read_to_string("/proc/stat") {
+        if let Some(line) = content.lines().next() {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() > 4 {
+                let total: u64 = parts[1..].iter().filter_map(|s| s.parse::<u64>().ok()).sum();
+                let idle: u64 = parts[4].parse().unwrap_or(0);
+                if total > 0 {
+                    let cpu = (100.0 * (total - idle) as f64 / total as f64) as u32;
+                    status["cpu_percent"] = serde_json::json!(cpu);
+                }
+            }
+        }
+    }
+    
+    // Load average
+    if let Ok(content) = std::fs::read_to_string("/proc/loadavg") {
+        let parts: Vec<&str> = content.split_whitespace().collect();
+        if parts.len() >= 3 {
+            status["load_avg"] = serde_json::json!({"1min": parts[0], "5min": parts[1], "15min": parts[2]});
+        }
+    }
+    
+    // 内存
+    let mut total_mb = 0u64;
+    let mut avail_mb = 0u64;
+    if let Ok(content) = std::fs::read_to_string("/proc/meminfo") {
+        for line in content.lines() {
+            if line.starts_with("MemTotal:") {
+                total_mb = line.split_whitespace().nth(1).and_then(|s| s.parse::<u64>().ok()).unwrap_or(0) / 1024;
+            }
+            if line.starts_with("MemAvailable:") {
+                avail_mb = line.split_whitespace().nth(1).and_then(|s| s.parse::<u64>().ok()).unwrap_or(0) / 1024;
+            }
+        }
+    }
+    if total_mb > 0 {
+        let used_mb = total_mb - avail_mb;
+        status["memory"] = serde_json::json!({"total_mb": total_mb, "used_mb": used_mb, "free_mb": avail_mb, "percent": (used_mb * 100) / total_mb});
+    }
+    
+    // 磁盘
+    if let Ok(output) = std::process::Command::new("df").arg("-h").arg("/").output() {
+        let output_str = String::from_utf8_lossy(&output.stdout);
+        for line in output_str.lines().skip(1) {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 6 {
+                status["disk"] = serde_json::json!({"total": parts[1], "used": parts[2], "available": parts[3], "percent": parts[4]});
+            }
+        }
+    }
+    
+    // 运行时间
+    if let Ok(content) = std::fs::read_to_string("/proc/uptime") {
+        let secs = content.split_whitespace().next().and_then(|s| s.parse::<f64>().ok()).unwrap_or(0.0);
+        let days = (secs / 86400.0) as u32;
+        let hours = ((secs % 86400.0) / 3600.0) as u32;
+        let mins = ((secs % 3600.0) / 60.0) as u32;
+        status["uptime"] = serde_json::json!(format!("{}天{}小时{}分", days, hours, mins));
+    }
+    
+    ok_response(status)
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct AgentData {
+    pub identity: Option<serde_json::Value>,
+    pub user: Option<serde_json::Value>,
+}
+
+pub async fn get_agent() -> Json<ApiResponse<AgentData>> {
+    let identity_path = "/root/.openclaw/workspace/IDENTITY.md";
+    let user_path = "/root/.openclaw/workspace/USER.md";
+    
+    let mut identity = serde_json::json!({});
+    let mut user = serde_json::json!({});
+    
+    // 解析IDENTITY.md
+    if let Ok(content) = std::fs::read_to_string(identity_path) {
+        for line in content.lines() {
+            if line.starts_with("- **Name:**") {
+                identity["name"] = serde_json::json!(line.split(":").nth(1).unwrap_or("").trim());
+            }
+            if line.starts_with("- **Creature:**") {
+                identity["creature"] = serde_json::json!(line.split(":").nth(1).unwrap_or("").trim());
+            }
+            if line.starts_with("- **Vibe:**") {
+                identity["vibe"] = serde_json::json!(line.split(":").nth(1).unwrap_or("").trim());
+            }
+            if line.starts_with("- **Emoji:**") {
+                identity["emoji"] = serde_json::json!(line.split(":").nth(1).unwrap_or("").trim());
+            }
+        }
+    }
+    
+    // 解析USER.md
+    if let Ok(content) = std::fs::read_to_string(user_path) {
+        for line in content.lines() {
+            if line.starts_with("- **Name:**") {
+                user["name"] = serde_json::json!(line.split(":").nth(1).unwrap_or("").trim());
+            }
+            if line.starts_with("- **What to call them:**") {
+                user["call_as"] = serde_json::json!(line.split(":").nth(1).unwrap_or("").trim());
+            }
+            if line.starts_with("- **Timezone:**") {
+                user["timezone"] = serde_json::json!(line.split(":").nth(1).unwrap_or("").trim());
+            }
+        }
+    }
+    
+    ok_response(AgentData { identity: Some(identity), user: Some(user) })
+}
+
+pub async fn save_agent(
+    Json(req): Json<serde_json::Value>,
+) -> Json<ApiResponse<String>> {
+    // 保存到文件
+    if let Some(identity) = req.get("identity") {
+        let mut content = String::new();
+        content.push_str("# IDENTITY.md - Who Am I?\n\n");
+        content.push_str("_(Fill this in during your first conversation. Make it yours.)_\n\n");
+        content.push_str("- **Name:** ");
+        if let Some(v) = identity.get("name").and_then(|v| v.as_str()) { content.push_str(v); }
+        content.push_str("\n- **Creature:** ");
+        if let Some(v) = identity.get("creature").and_then(|v| v.as_str()) { content.push_str(v); }
+        content.push_str("\n- **Vibe:** ");
+        if let Some(v) = identity.get("vibe").and_then(|v| v.as_str()) { content.push_str(v); }
+        content.push_str("\n- **Emoji:** ");
+        if let Some(v) = identity.get("emoji").and_then(|v| v.as_str()) { content.push_str(v); }
+        content.push_str("\n\n---\n\n");
+        content.push_str("Notes:\n\n");
+        content.push_str("- Save this file at the workspace root as `IDENTITY.md`.\n");
+        
+        let _ = std::fs::write("/root/.openclaw/workspace/IDENTITY.md", content);
+    }
+    
+    if let Some(user) = req.get("user") {
+        let mut content = String::new();
+        content.push_str("# USER.md - About Your Human\n\n");
+        content.push_str("_(Learn about the person you're helping. Update this as you go.)_\n\n");
+        content.push_str("- **Name:** ");
+        if let Some(v) = user.get("name").and_then(|v| v.as_str()) { content.push_str(v); }
+        content.push_str("\n- **What to call them:** ");
+        if let Some(v) = user.get("call_as").and_then(|v| v.as_str()) { content.push_str(v); }
+        content.push_str("\n- **Pronouns:** _(optional)_\n- **Timezone:** ");
+        if let Some(v) = user.get("timezone").and_then(|v| v.as_str()) { content.push_str(v); }
+        content.push_str("\n- **Notes:**\n\n## Context\n\n_(What do they care about? What projects are they working on? What annoys them? What makes them laugh? Build this over time.)_\n\n---\n\n");
+        
+        let _ = std::fs::write("/root/.openclaw/workspace/USER.md", content);
+    }
+    
+    ok_response("保存成功".to_string())
+}
+
+pub async fn get_cron_logs() -> Json<ApiResponse<Vec<String>>> {
+    let cron_dir = "/root/.openclaw/cron";
+    let mut logs: Vec<String> = Vec::new();
+    
+    if let Ok(entries) = std::fs::read_dir(cron_dir) {
+        for entry in entries.flatten() {
+            if let Ok(content) = std::fs::read_to_string(entry.path()) {
+                for line in content.lines().rev().take(20) {
+                    if !line.is_empty() {
+                        logs.push(line.to_string());
+                    }
+                }
+            }
+        }
+    }
+    
+    logs.reverse();
+    ok_response(logs)
+}
+
+pub async fn get_full_config() -> Json<ApiResponse<serde_json::Value>> {
+    let config_path = "/root/.openclaw/openclaw.json";
+    
+    if let Ok(content) = std::fs::read_to_string(config_path) {
+        if let Ok(json) = serde_json::from_str(&content) {
+            return ok_response(json);
+        }
+    }
+    
+    err_response("无法读取配置")
+}
+
+pub async fn list_cron() -> Json<ApiResponse<Vec<serde_json::Value>>> {
+    let cron_file = "/root/.openclaw/cron/jobs.json";
+    let mut jobs: Vec<serde_json::Value> = Vec::new();
+    
+    if let Ok(content) = std::fs::read_to_string(cron_file) {
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
+            if let Some(arr) = json.get("jobs").and_then(|v| v.as_array()) {
+                jobs = arr.clone();
+            }
+        }
+    }
+    
+    ok_response(jobs)
 }

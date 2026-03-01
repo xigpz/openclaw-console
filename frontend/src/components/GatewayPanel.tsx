@@ -19,7 +19,7 @@ export default function GatewayPanel() {
 
   const loadStatus = async () => {
     try {
-      const res = await fetch('http://localhost:8080/api/gateway/status');
+      const res = await fetch('/api/gateway/status');
       const data = await res.json();
       if (data.success) {
         setStatus(data.data);
@@ -35,7 +35,7 @@ export default function GatewayPanel() {
     
     setRestarting(true);
     try {
-      const res = await fetch('http://localhost:8080/api/gateway/restart', { method: 'POST' });
+      const res = await fetch('/api/gateway/restart', { method: 'POST' });
       const data = await res.json();
       if (data.success) {
         alert('Gateway 正在重启...');

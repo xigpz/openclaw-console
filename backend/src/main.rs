@@ -7,20 +7,15 @@ use axum::{
     Router,
 };
 use std::net::SocketAddr;
-
 #[tokio::main]
 async fn main() {
     // 初始化日志
     tracing_subscriber::fmt::init();
-
     tracing::info!("OpenClaw Console starting...");
-
     // 初始化数据库
     let db = db::init_db().expect("Failed to initialize database");
-
     // 创建应用状态
     let state = api::AppState::new(db);
-
     // 构建路由
     let app = Router::new()
         // 健康检查
@@ -45,20 +40,25 @@ async fn main() {
         .route("/api/skills/install", post(api::install_skill))
         .route("/api/skills/:name/uninstall", post(api::uninstall_skill))
         // 系统配置
-        .route("/api/config", get(api::get_config))
+        .route("/api/config", get(api::get_full_config))
         .route("/api/config", post(api::save_config))
+        .route("/api/backup", post(api::backup_config))
         // Gateway 管理
         .route("/api/gateway/status", get(api::gateway_status))
         .route("/api/gateway/restart", post(api::gateway_restart))
+        .route("/api/logs", get(api::get_logs))
+        .route("/api/system/status", get(api::get_system_status))
+        .route("/api/agent", get(api::get_agent))
+        .route("/api/agent", post(api::save_agent))
+        .route("/api/cron", get(api::list_cron))
+        .route("/api/cron/logs", get(api::get_cron_logs))
         // OpenClaw 更新
         .route("/api/openclaw/version", get(api::openclaw_version))
         .route("/api/openclaw/update", post(api::openclaw_update))
         .with_state(state);
-
     // 启动服务
     let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
     tracing::info!("Server running on http://{}", addr);
-
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
