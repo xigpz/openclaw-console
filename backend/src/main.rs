@@ -41,6 +41,9 @@ async fn main() {
         // 系统配置
         .route("/api/config", get(api::get_config))
         .route("/api/config", post(api::save_config))
+        // Gateway 管理
+        .route("/api/gateway/status", get(api::gateway_status))
+        .route("/api/gateway/restart", post(api::gateway_restart))
         .with_state(state);
 
     // 启动服务

@@ -5,6 +5,7 @@ use axum::{
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
+use std::process::Command;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -381,5 +382,52 @@ pub async fn save_config(
     ) {
         Ok(_) => ok_response("ok".to_string()),
         Err(e) => err_response(&format!("保存失败: {}", e)),
+    }
+}
+
+// ============ Gateway 管理 ============
+
+#[derive(Serialize)]
+pub struct GatewayStatus {
+    pub running: bool,
+    pub pid: Option<u32>,
+    pub uptime: Option<String>,
+}
+
+pub async fn gateway_status() -> Json<ApiResponse<GatewayStatus>> {
+    // 检查 gateway 进程是否在运行
+    let output = Command::new("pgrep")
+        .args(["-f", "openclaw"])
+        .output();
+    
+    let running = match output {
+        Ok(o) => !o.stdout.is_empty(),
+        Err(_) => false,
+    };
+    
+    ok_response(GatewayStatus {
+        running,
+        pid: None,
+        uptime: None,
+    })
+}
+
+pub async fn gateway_restart() -> Json<ApiResponse<String>> {
+    // 执行 openclaw gateway restart
+    let output = Command::new("openclaw")
+        .args(["gateway", "restart"])
+        .output();
+    
+    match output {
+        Ok(o) if o.status.success() => {
+            ok_response("Gateway 重启成功".to_string())
+        }
+        Ok(o) => {
+            let msg = String::from_utf8_lossy(&o.stderr);
+            err_response(&format!("重启失败: {}", msg))
+        }
+        Err(e) => {
+            err_response(&format!("执行失败: {}", e))
+        }
     }
 }

@@ -3,13 +3,15 @@ import PlatformPanel from './components/PlatformPanel';
 import ModelPanel from './components/ModelPanel';
 import SkillPanel from './components/SkillPanel';
 import ConfigPanel from './components/ConfigPanel';
+import GatewayPanel from './components/GatewayPanel';
 
-type TabId = 'platforms' | 'models' | 'skills' | 'config';
+type TabId = 'platforms' | 'models' | 'skills' | 'config' | 'gateway';
 
 const tabs: { id: TabId; label: string; icon: string }[] = [
   { id: 'platforms', label: '平台配置', icon: '🔌' },
   { id: 'models', label: '模型管理', icon: '🤖' },
   { id: 'skills', label: 'Skills', icon: '📦' },
+  { id: 'gateway', label: 'Gateway', icon: '⚡' },
   { id: 'config', label: '系统配置', icon: '⚙️' },
 ];
 
@@ -56,6 +58,7 @@ function App() {
         {activeTab === 'platforms' && <PlatformPanel />}
         {activeTab === 'models' && <ModelPanel />}
         {activeTab === 'skills' && <SkillPanel />}
+        {activeTab === 'gateway' && <GatewayPanel />}
         {activeTab === 'config' && <ConfigPanel />}
       </main>
     </div>
