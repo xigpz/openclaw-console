@@ -70,7 +70,7 @@ pub fn remember_keypoint(key: &str, value: &str) {
  * 压缩记忆 - 提取重要信息到 MEMORY.md
  */
 pub fn compress_memory() {
-    let memory_file = PathBuf::from("MEMORY.md");
+    let memory_file = PathBuf::from("/root/.openclaw/workspace/MEMORY.md");
     let today = chrono::Local::now().format("%Y-%m-%d").to_string();
     let today_file = get_today_file();
     
@@ -108,7 +108,7 @@ pub fn compress_memory() {
  * 读取记忆
  */
 pub fn read_memory() -> String {
-    let memory_file = PathBuf::from("MEMORY.md");
+    let memory_file = PathBuf::from("/root/.openclaw/workspace/MEMORY.md");
     if memory_file.exists() {
         fs::read_to_string(&memory_file).unwrap_or_default()
     } else {

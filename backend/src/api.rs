@@ -5,6 +5,7 @@ use axum::{
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
+use futures_util::Stream;
 use std::process::Command;
 
 #[derive(Clone)]
@@ -804,4 +805,304 @@ pub async fn list_cron() -> Json<ApiResponse<Vec<serde_json::Value>>> {
     }
     
     ok_response(jobs)
+}
+
+
+// Sessions API
+pub async fn list_sessions() -> Result<Json<serde_json::Value>, String> {
+    let sessions_dir = std::path::Path::new("/root/.openclaw/agents/main/sessions");
+    let mut sessions = Vec::new();
+    
+    if let Ok(entries) = std::fs::read_dir(sessions_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) == Some("jsonl") {
+                let id = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+                if let Ok(content) = std::fs::read_to_string(&path) {
+                    let lines: Vec<&str> = content.lines().collect();
+                    let mut preview = String::new();
+                    if let Some(last) = lines.last() {
+                        if let Ok(v) = serde_json::from_str::<serde_json::Value>(last) {
+                            if let Some(msg) = v.get("message") {
+                                if let Some(c) = msg.get("content") {
+                                    if let Some(arr) = c.as_array() {
+                                        for item in arr {
+                                            if let Some(t) = item.get("type").and_then(|x| x.as_str()) {
+                                                if t == "text" {
+                                                    if let Some(text) = item.get("text").and_then(|x| x.as_str()) {
+                                                        preview = text.chars().take(50).collect();
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    let metadata = std::fs::metadata(&path).ok();
+                    let updated = metadata.and_then(|m| m.modified().ok())
+                        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0);
+                    
+                    sessions.push(serde_json::json!({
+                        "id": id,
+                        "updated": updated,
+                        "message_count": lines.len(),
+                        "preview": preview
+                    }));
+                }
+            }
+        }
+    }
+    
+    sessions.sort_by(|a, b| b["updated"].as_u64().unwrap_or(0).cmp(&a["updated"].as_u64().unwrap_or(0)));
+    
+    Ok(Json(serde_json::json!({ "success": true, "sessions": sessions })))
+}
+
+pub async fn get_session(Path(id): Path<String>) -> Result<Json<serde_json::Value>, String> {
+    let path = format!("/root/.openclaw/agents/main/sessions/{}.jsonl", id);
+    let content = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    
+    let messages: Vec<serde_json::Value> = content
+        .lines()
+        .filter_map(|l| serde_json::from_str::<serde_json::Value>(l).ok())
+        .collect();
+    
+    Ok(Json(serde_json::json!({ "success": true, "messages": messages })))
+}
+
+pub async fn delete_session(Path(id): Path<String>) -> Result<Json<serde_json::Value>, String> {
+    let path = format!("/root/.openclaw/agents/main/sessions/{}.jsonl", id);
+    std::fs::remove_file(&path).map_err(|e| e.to_string())?;
+    Ok(Json(serde_json::json!({ "success": true })))
+}
+
+
+// Stats API - 使用统计
+pub async fn get_stats() -> Result<Json<serde_json::Value>, String> {
+    let sessions_dir = std::path::Path::new("/root/.openclaw/agents/main/sessions");
+    let mut total_messages = 0u64;
+    let mut total_input = 0u64;
+    let mut total_output = 0u64;
+    let mut total_cache_read = 0u64;
+    let mut total_cache_write = 0u64;
+    let mut session_count = 0u64;
+    
+    if let Ok(entries) = std::fs::read_dir(sessions_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) == Some("jsonl") {
+                session_count += 1;
+                if let Ok(content) = std::fs::read_to_string(&path) {
+                    for line in content.lines() {
+                        if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
+                            // 只统计 assistant 消息
+                            if let Some(msg) = v.get("message") {
+                                if let Some(role) = msg.get("role").and_then(|r| r.as_str()) {
+                                    if role == "assistant" {
+                                        total_messages += 1;
+                                        if let Some(usage) = msg.get("usage") {
+                                            total_input += usage.get("input").and_then(|v| v.as_u64()).unwrap_or(0);
+                                            total_output += usage.get("output").and_then(|v| v.as_u64()).unwrap_or(0);
+                                            total_cache_read += usage.get("cacheRead").and_then(|v| v.as_u64()).unwrap_or(0);
+                                            total_cache_write += usage.get("cacheWrite").and_then(|v| v.as_u64()).unwrap_or(0);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // 计算成本 (CNY per 1M tokens)
+    let input_cost = (total_input as f64) / 1_000_000.0 * 1.0;
+    let output_cost = (total_output as f64) / 1_000_000.0 * 1.0;
+    let cache_read_cost = (total_cache_read as f64) / 1_000_000.0 * 0.1;
+    let cache_write_cost = (total_cache_write as f64) / 1_000_000.0 * 0.1;
+    let total_cost = input_cost + output_cost + cache_read_cost + cache_write_cost;
+    
+    let stats = serde_json::json!({
+        "totalMessages": total_messages,
+        "totalInputTokens": total_input,
+        "totalOutputTokens": total_output,
+        "totalCacheRead": total_cache_read,
+        "totalCacheWrite": total_cache_write,
+        "estimatedCost": total_cost,
+        "sessionCount": session_count
+    });
+    
+    Ok(Json(serde_json::json!({ "success": true, "stats": stats })))
+}
+
+
+
+// Monitor API - 轮询方式
+pub async fn get_recent_messages() -> Result<Json<serde_json::Value>, String> {
+    let sessions_dir = std::path::Path::new("/root/.openclaw/agents/main/sessions");
+    let mut messages = Vec::new();
+    
+    if let Ok(entries) = std::fs::read_dir(sessions_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) == Some("jsonl") {
+                if let Ok(content) = std::fs::read_to_string(&path) {
+                    let lines: Vec<&str> = content.lines().collect();
+                    for line in lines.iter().rev().take(10) {
+                        if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
+                            if let Some(msg) = v.get("message") {
+                                if let Some(role) = msg.get("role").and_then(|r| r.as_str()) {
+                                    let content = msg.get("content")
+                                        .and_then(|c| c.as_array())
+                                        .and_then(|arr| arr.iter().find(|i| i.get("type").and_then(|t| t.as_str()) == Some("text")))
+                                        .and_then(|t| t.get("text").and_then(|x| x.as_str()))
+                                        .unwrap_or("");
+                                    
+                                    messages.push(serde_json::json!({
+                                        "role": role,
+                                        "content": content,
+                                        "timestamp": v.get("timestamp").and_then(|t| t.as_str()).unwrap_or("")
+                                    }));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    messages.sort_by(|a, b| b["timestamp"].as_str().unwrap_or("").cmp(a["timestamp"].as_str().unwrap_or("")));
+    messages.truncate(50);
+    
+    Ok(Json(serde_json::json!({ "success": true, "messages": messages })))
+}
+
+
+// Quick Action API - 快捷操作
+pub async fn quick_action(Json(data): Json<serde_json::Value>) -> Result<Json<serde_json::Value>, String> {
+    let action = data.get("action").and_then(|v| v.as_str()).unwrap_or("");
+    
+    let output = std::process::Command::new("bash")
+        .arg("-c")
+        .arg(action)
+        .output()
+        .map_err(|e| e.to_string())?;
+    
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+    
+    if output.status.success() {
+        Ok(Json(serde_json::json!({ "success": true, "output": stdout })))
+    } else {
+        Ok(Json(serde_json::json!({ "success": false, "error": stderr, "output": stdout })))
+    }
+}
+
+
+// Install API - 一键安装
+pub async fn do_install(Json(data): Json<serde_json::Value>) -> Result<Json<serde_json::Value>, String> {
+    let install_type = data.get("type").and_then(|v| v.as_str()).unwrap_or("docker");
+    let mut logs = Vec::new();
+    
+    match install_type {
+        "docker" => {
+            logs.push("正在检查 Docker...".to_string());
+            
+            // 检查 docker
+            let docker_check = std::process::Command::new("docker")
+                .arg("--version")
+                .output();
+            
+            if docker_check.is_err() {
+                return Ok(Json(serde_json::json!({ "success": false, "error": "Docker 未安装", "logs": logs })));
+            }
+            
+            logs.push("✅ Docker 已安装".to_string());
+            logs.push("正在拉取镜像...".to_string());
+            
+            // 拉取镜像
+            let pull = std::process::Command::new("docker")
+                .args(&["pull", "openclaw/openclaw:latest"])
+                .output();
+            
+            if pull.is_err() {
+                return Ok(Json(serde_json::json!({ "success": false, "error": "镜像拉取失败", "logs": logs })));
+            }
+            
+            logs.push("✅ 镜像拉取成功".to_string());
+            logs.push("OpenClaw 安装完成！".to_string());
+        },
+        "npm" => {
+            logs.push("正在检查 Node.js...".to_string());
+            
+            let node_check = std::process::Command::new("node")
+                .arg("--version")
+                .output();
+            
+            if node_check.is_err() {
+                return Ok(Json(serde_json::json!({ "success": false, "error": "Node.js 未安装", "logs": logs })));
+            }
+            
+            logs.push("✅ Node.js 已安装".to_string());
+            logs.push("正在安装 OpenClaw...".to_string());
+            
+            // 这里只是模拟，实际npm安装需要交互
+            logs.push("请在终端运行: npm install -g openclaw@latest".to_string());
+        },
+        _ => {}
+    }
+    
+    Ok(Json(serde_json::json!({ "success": true, "logs": logs })))
+}
+
+
+// Install Check API - 环境检测
+pub async fn check_install_env() -> Result<Json<serde_json::Value>, String> {
+    let docker = std::process::Command::new("docker")
+        .arg("--version")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+    
+    let docker_running = std::process::Command::new("docker")
+        .args(&["info"])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+    
+    let openclaw_container = std::process::Command::new("docker")
+        .args(&["ps", "-a", "-q", "--filter", "name=openclaw"])
+        .output()
+        .map(|o| !String::from_utf8_lossy(&o.stdout).trim().is_empty())
+        .unwrap_or(false);
+    
+    let npm_installed = std::process::Command::new("bash")
+        .args(&["-c", "which openclaw"])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+    
+    let gateway_running = std::process::Command::new("bash")
+        .args(&["-c", "pgrep -f openclaw-gateway"])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+    
+    let env = serde_json::json!({
+        "docker": docker,
+        "dockerRunning": docker_running,
+        "openclawContainer": openclaw_container,
+        "npmInstalled": npm_installed,
+        "gatewayRunning": gateway_running
+    });
+    
+    Ok(Json(serde_json::json!({ "success": true, "env": env })))
 }

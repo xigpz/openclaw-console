@@ -1,5 +1,20 @@
+@import 'tailwindcss';
+
 :root {
   --vh: 1vh;
+  --bg-primary: #0a0a0f;
+  --bg-elevated: #121218;
+  --bg-secondary: #1a1a24;
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --primary: #10b981;
+  --primary-glow: rgba(16, 185, 129, 0.4);
+  --accent: #8b5cf6;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
 }
 
 @supports (height: 100dvh) {
@@ -8,7 +23,13 @@
   }
 }
 
-/* 弹窗居中 - 使用视口单位 */
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+/* 弹窗居中 */
 .modal-overlay {
   position: fixed !important;
   top: 0 !important;
@@ -26,3 +47,160 @@
   max-height: calc(var(--vh, 1vh) * 80) !important;
   overflow: auto !important;
 }
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .container { padding: 1rem !important; }
+  header .flex { flex-direction: column; gap: 1rem; }
+  header .px-8 { padding-left: 1rem !important; padding-right: 1rem !important; }
+  nav .px-8 { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+  .glass-card { padding: 1rem !important; }
+  .grid { grid-template-columns: 1fr !important; }
+  .text-2xl { font-size: 1.25rem !important; }
+}
+
+@media (max-width: 1024px) {
+  nav .flex { overflow-x: auto; scrollbar-width: none; -ms-overflow-style: none; }
+  nav .flex::-webkit-scrollbar { display: none; }
+  nav .flex gap-1 { flex-wrap: nowrap; padding-bottom: 0.5rem; }
+}
+
+/* 玻璃卡片效果 */
+.glass-card {
+  background: rgba(18, 18, 24, 0.8);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+}
+
+/* 输入框样式 */
+.input-glass {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  color: var(--text-primary);
+  width: 100%;
+}
+
+.input-glass:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+/* 按钮样式 */
+.btn-glow {
+  background: linear-gradient(135deg, var(--primary), #8b5cf6);
+  color: white;
+  padding: 0.5rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 16px var(--primary-glow);
+  transition: all 0.2s;
+}
+
+.btn-glow:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* 二级菜单样式 */
+.menu-root {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.menu-group {
+  margin-bottom: 4px;
+}
+
+.menu-group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.menu-group-title:hover {
+  background: var(--bg-secondary);
+}
+
+.menu-group-icon {
+  font-size: 14px;
+}
+
+.menu-group-label {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.menu-arrow {
+  font-size: 10px;
+  color: var(--text-muted);
+  transition: transform 0.2s;
+}
+
+.menu-arrow.open {
+  transform: rotate(90deg);
+}
+
+.menu-sub {
+  list-style: none;
+  padding: 0 0 0 16px;
+  margin: 0;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  text-align: left;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.menu-item:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.menu-item.active {
+  background: var(--primary);
+  color: white;
+}
+
+.menu-item span:first-child {
+  font-size: 16px;
+}
+
+
+/* 二级菜单样式 */
+.menu-root { list-style: none; padding: 0; margin: 0; }
+.menu-group { margin-bottom: 4px; }
+.menu-group-title { display: flex; align-items: center; gap: 8px; padding: 8px 12px; cursor: pointer; border-radius: 8px; }
+.menu-group-title:hover { background: var(--bg-secondary); }
+.menu-group-icon { font-size: 14px; }
+.menu-group-label { flex: 1; font-size: 12px; font-weight: 500; color: var(--text-secondary); }
+.menu-arrow { font-size: 10px; color: var(--text-muted); transition: transform 0.2s; }
+.menu-arrow.open { transform: rotate(90deg); }
+.menu-sub { list-style: none; padding: 0 0 0 16px; margin: 0; }
+.menu-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border: none; border-radius: 8px; background: transparent; color: var(--text-secondary); cursor: pointer; text-align: left; font-size: 14px; }
+.menu-item:hover { background: var(--bg-secondary); color: var(--text-primary); }
+.menu-item.active { background: var(--primary); color: white; }
+.menu-item span:first-child { font-size: 16px; }

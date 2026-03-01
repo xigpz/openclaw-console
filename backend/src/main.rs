@@ -55,6 +55,19 @@ async fn main() {
         // OpenClaw 更新
         .route("/api/openclaw/version", get(api::openclaw_version))
         .route("/api/openclaw/update", post(api::openclaw_update))
+        // Sessions 会话管理
+        .route("/api/sessions", get(api::list_sessions))
+        .route("/api/sessions/:id", get(api::get_session))
+        .route("/api/sessions/:id", delete(api::delete_session))
+        // 使用统计
+        .route("/api/stats", get(api::get_stats))
+        // 实时监控
+        .route("/api/monitor", get(api::get_recent_messages))
+        // 快捷操作
+        .route("/api/quick/action", post(api::quick_action))
+        // 一键安装
+        .route("/api/install", post(api::do_install))
+        .route("/api/install/check", get(api::check_install_env))
         .with_state(state);
     // 启动服务
     let addr = SocketAddr::from(([0, 0, 0, 0], 8080));

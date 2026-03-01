@@ -1,0 +1,13 @@
+# 敏感文件
+.env
+.env.local
+*.log
+*.db-journal
+
+# 后端
+backend/target/
+backend/*.env
+
+# 前端
+node_modules/
+dist/
