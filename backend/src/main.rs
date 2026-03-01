@@ -44,6 +44,9 @@ async fn main() {
         // Gateway 管理
         .route("/api/gateway/status", get(api::gateway_status))
         .route("/api/gateway/restart", post(api::gateway_restart))
+        // OpenClaw 更新
+        .route("/api/openclaw/version", get(api::openclaw_version))
+        .route("/api/openclaw/update", post(api::openclaw_update))
         .with_state(state);
 
     // 启动服务

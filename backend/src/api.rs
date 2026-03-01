@@ -431,3 +431,67 @@ pub async fn gateway_restart() -> Json<ApiResponse<String>> {
         }
     }
 }
+
+// ============ OpenClaw 更新 ============
+
+#[derive(Serialize)]
+pub struct VersionInfo {
+    pub current: String,
+    pub latest: String,
+    pub update_available: bool,
+}
+
+pub async fn openclaw_version() -> Json<ApiResponse<VersionInfo>> {
+    // 获取当前版本
+    let current = Command::new("openclaw")
+        .arg("--version")
+        .output();
+    
+    let current_version = match current {
+        Ok(o) if o.status.success() => {
+            String::from_utf8_lossy(&o.stdout).trim().to_string()
+        }
+        _ => "未知".to_string(),
+    };
+    
+    // 检查最新版本 (通过 npm 检查)
+    let latest = Command::new("npm")
+        .args(["view", "openclaw", "version"])
+        .output();
+    
+    let latest_version = match latest {
+        Ok(o) if o.status.success() => {
+            String::from_utf8_lossy(&o.stdout).trim().to_string()
+        }
+        _ => "未知".to_string(),
+    };
+    
+    let update_available = current_version != latest_version && latest_version != "未知";
+    
+    ok_response(VersionInfo {
+        current: current_version,
+        latest: latest_version,
+        update_available,
+    })
+}
+
+pub async fn openclaw_update() -> Json<ApiResponse<String>> {
+    // 执行更新
+    let output = Command::new("openclaw")
+        .arg("update")
+        .output();
+    
+    match output {
+        Ok(o) if o.status.success() => {
+            let msg = String::from_utf8_lossy(&o.stdout);
+            ok_response(format!("更新成功: {}", msg))
+        }
+        Ok(o) => {
+            let msg = String::from_utf8_lossy(&o.stderr);
+            err_response(&format!("更新失败: {}", msg))
+        }
+        Err(e) => {
+            err_response(&format!("执行更新失败: {}", e))
+        }
+    }
+}
