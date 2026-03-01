@@ -51,6 +51,40 @@ pub async fn health() -> Json<ApiResponse<String>> {
     ok_response("OpenClaw Console is running".to_string())
 }
 
+// ============ 记忆管理 ============
+
+#[derive(Deserialize)]
+pub struct RememberReq {
+    pub role: String,
+    pub content: String,
+}
+
+pub async fn remember(Json(req): Json<RememberReq>) -> Json<ApiResponse<String>> {
+    crate::memory::remember(&req.role, &req.content);
+    ok_response("ok".to_string())
+}
+
+#[derive(Deserialize)]
+pub struct KeyPointReq {
+    pub key: String,
+    pub value: String,
+}
+
+pub async fn remember_keypoint(Json(req): Json<KeyPointReq>) -> Json<ApiResponse<String>> {
+    crate::memory::remember_keypoint(&req.key, &req.value);
+    ok_response("ok".to_string())
+}
+
+pub async fn compress_memory() -> Json<ApiResponse<String>> {
+    crate::memory::compress_memory();
+    ok_response("ok".to_string())
+}
+
+pub async fn read_memory() -> Json<ApiResponse<String>> {
+    let content = crate::memory::read_memory();
+    ok_response(content)
+}
+
 // ============ 平台配置 ============
 
 #[derive(Debug, Serialize, Deserialize, Default)]

@@ -1,11 +1,12 @@
+mod api;
+mod db;
+mod memory;
+
 use axum::{
     routing::{get, post, delete},
     Router,
 };
 use std::net::SocketAddr;
-
-mod api;
-mod db;
 
 #[tokio::main]
 async fn main() {
@@ -24,6 +25,11 @@ async fn main() {
     let app = Router::new()
         // 健康检查
         .route("/api/health", get(api::health))
+        // 记忆管理
+        .route("/api/memory/remember", post(api::remember))
+        .route("/api/memory/keypoint", post(api::remember_keypoint))
+        .route("/api/memory/compress", post(api::compress_memory))
+        .route("/api/memory", get(api::read_memory))
         // 平台配置
         .route("/api/platforms", get(api::list_platforms))
         .route("/api/platforms", post(api::save_platform))
