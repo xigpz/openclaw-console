@@ -59,7 +59,7 @@ pub fn init_db() -> Result<Connection, rusqlite::Error> {
     )?;
 
     // 插入默认平台
-    let default_platforms = vec!["feishu", "qqbot", "ddingtalk", "wecom"];
+    let default_platforms = vec!["feishu", "telegram", "qqbot", "ddingtalk", "wecom"];
     for platform in default_platforms {
         conn.execute(
             "INSERT OR IGNORE INTO platforms (name, enabled, created_at) VALUES (?1, 0, datetime('now'))",

@@ -3,9 +3,18 @@ import type { Platform, ApiResponse } from '../types';
 
 const platformNames: Record<string, string> = {
   feishu: '飞书',
+  telegram: 'Telegram',
   qqbot: 'QQ 机器人',
   ddingtalk: '钉钉',
   wecom: '企业微信',
+};
+
+const platformIcons: Record<string, string> = {
+  feishu: '📱',
+  telegram: '✈️',
+  qqbot: '💬',
+  ddingtalk: '💼',
+  wecom: '🏢',
 };
 
 export default function PlatformPanel() {
@@ -76,10 +85,10 @@ export default function PlatformPanel() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-[#2a2a2a] rounded-lg flex items-center justify-center text-lg">
-                  {platform.name === 'feishu' && '📱'}
-                  {platform.name === 'qqbot' && '💬'}
+                  {platformIcons[platform.name] || '📱'}
+                  {platformIcons[platform.name] || '💬'}
                   {platform.name === 'ddingtalk' && '�钉'}
-                  {platform.name === 'wecom' && '💼'}
+                  {platformIcons[platform.name] || '💼'}
                 </div>
                 <div>
                   <div className="font-medium">{platformNames[platform.name] || platform.name}</div>
