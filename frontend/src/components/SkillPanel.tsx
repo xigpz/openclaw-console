@@ -7,6 +7,12 @@ export default function SkillPanel() {
   const [installName, setInstallName] = useState('');
   const [installSpec, setInstallSpec] = useState('');
   const [installing, setInstalling] = useState(false);
+  const [toast, setToast] = useState<{msg: string, type: 'success' | 'error'} | null>(null);
+
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({msg, type});
+    setTimeout(() => setToast(null), 2000);
+  };
 
   useEffect(() => {
     loadSkills();
@@ -49,8 +55,10 @@ export default function SkillPanel() {
     try {
       await fetch(`http://localhost:8080/api/skills/${name}/uninstall`, { method: 'POST' });
       loadSkills();
+      showToast('卸载成功');
     } catch (e) {
       console.error('Failed to uninstall skill:', e);
+      showToast('卸载失败', 'error');
     }
   };
 
