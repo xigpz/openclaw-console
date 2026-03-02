@@ -62,8 +62,8 @@ export default function CronPanel() {
 
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>⏰ 定时任务</h2>
-        <div class-2">
-         Name="flex gap <button onClick={() => setShowAdd(!showAdd)} className="btn-glow">➕ 添加</button>
+        <div className="flex gap-2">
+         <button onClick={() => setShowAdd(!showAdd)} className="btn-glow">➕ 添加</button>
           <button onClick={loadJobs} className="btn-glow">🔄 刷新</button>
         </div>
       </div>
