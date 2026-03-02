@@ -207,3 +207,19 @@ function App() {
 }
 
 export default App;
+
+// 快捷键处理
+useEffect(() => {
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      switch(e.key) {
+        case '1': setActiveTab('platforms'); break;
+        case '2': setActiveTab('models'); break;
+        case '3': setActiveTab('skills'); break;
+        case 's': e.preventDefault(); break;
+      }
+    }
+  };
+  window.addEventListener('keydown', handleKeyDown);
+  return () => window.removeEventListener('keydown', handleKeyDown);
+}, []);
