@@ -9,8 +9,16 @@ interface CronJob {
 export default function CronPanel() {
   const [jobs, setJobs] = useState<CronJob[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAdd, setShowAdd] = useState(false);
+  const [newJob, setNewJob] = useState({ schedule: '', command: '' });
+  const [toast, setToast] = useState<{msg: string, type: 'success' | 'error'} | null>(null);
 
   useEffect(() => { loadJobs(); }, []);
+
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({msg, type});
+    setTimeout(() => setToast(null), 2000);
+  };
 
   const loadJobs = async () => {
     setLoading(true);
@@ -20,6 +28,26 @@ export default function CronPanel() {
       if (data.success) setJobs(data.data || []);
     } catch (e) { console.error(e); }
     setLoading(false);
+  };
+
+  const addJob = async () => {
+    if (!newJob.schedule || !newJob.command) {
+      showToast('请填写完整', 'error');
+      return;
+    }
+    try {
+      await fetch('/api/cron', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newJob)
+      });
+      setShowAdd(false);
+      setNewJob({ schedule: '', command: '' });
+      loadJobs();
+      showToast('添加成功');
+    } catch (e) {
+      showToast('添加失败', 'error');
+    }
   };
 
   if (loading) return <div className="flex justify-center p-12"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div></div>;
