@@ -42,6 +42,7 @@ export default function PlatformPanel() {
   const [editing, setEditing] = useState<string | null>(null);
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [showPassword, setShowPassword] = useState<Record<string, boolean>>({});
+  const [toast, setToast] = useState<{msg: string, type: 'success' | 'error'} | null>(null);
 
   useEffect(() => { loadPlatforms(); }, []);
 
@@ -51,7 +52,16 @@ export default function PlatformPanel() {
     setLoading(false);
   };
 
-  const togglePlatform = async (name: string) => { await fetch('/api/platforms/' + name + '/toggle', { method: 'POST' }); loadPlatforms(); };
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({msg, type});
+    setTimeout(() => setToast(null), 2000);
+  };
+
+  const togglePlatform = async (name: string) => { 
+    await fetch('/api/platforms/' + name + '/toggle', { method: 'POST' }); 
+    loadPlatforms(); 
+    showToast('已切换');
+  };
   const openEditor = (platform: Platform) => { setEditing(platform.name); const config = platform.config ? JSON.parse(platform.config) : {}; setFormData(config); setShowPassword({}); };
   const saveConfig = async (name: string) => { await fetch('/api/platforms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, config: JSON.stringify(formData) }) }); setEditing(null); loadPlatforms(); };
 
@@ -71,6 +81,12 @@ export default function PlatformPanel() {
 
   return (
     <div className="space-y-6">
+      {toast && (
+        <div className={`fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`}>
+          {toast.msg}
+        </div>
+      )}
+
       <h2 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>🔌 平台配置</h2>
 
       <div className="grid gap-4 md:grid-cols-2">
