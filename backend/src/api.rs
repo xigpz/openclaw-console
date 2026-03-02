@@ -540,25 +540,44 @@ pub async fn openclaw_update() -> Json<ApiResponse<String>> {
 
 pub async fn get_logs() -> Json<ApiResponse<Vec<String>>> {
     let mut logs: Vec<String> = Vec::new();
-    let session_file = "/root/.openclaw/agents/main/sessions/5808c42e-c301-469d-9a65-9ffc506090b2.jsonl";
-    if let Ok(content) = std::fs::read_to_string(session_file) {
-        for line in content.lines().rev().take(100) {
-            if !line.is_empty() {
-                if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
-                    if json.get("type").and_then(|v| v.as_str()).unwrap_or("") == "message" {
-                        if let Some(msg_obj) = json.get("message").and_then(|v| v.as_object()) {
-                            let role = msg_obj.get("role").and_then(|v| v.as_str()).unwrap_or("");
-                            if let Some(content_arr) = msg_obj.get("content").and_then(|v| v.as_array()) {
-                                for item in content_arr {
-                                    if let Some(text) = item.get("text").and_then(|v| v.as_str()) {
-                                        let ts_raw = json.get("timestamp").and_then(|v| v.as_str()).unwrap_or("");
-                                        let ts = if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(ts_raw) {
-                                            let cst = dt.with_timezone(&chrono::FixedOffset::east(8 * 3600));
-                                            cst.format("%Y-%m-%d %H:%M:%S").to_string()
-                                        } else {
-                                            ts_raw[..19].replace("T", " ").to_string()
-                                        };
-                                        logs.push(format!("[{}] {}: {}", ts, role, text.chars().take(150).collect::<String>()));
+    let sessions_dir = "/root/.openclaw/agents/main/sessions";
+    let logs_dir = "/root/.openclaw/logs";
+    
+    // 读取所有 session 文件的消息
+    if let Ok(entries) = std::fs::read_dir(sessions_dir) {
+        let mut files: Vec<_> = entries
+            .filter_map(|e| e.ok())
+            .filter(|e| e.path().extension().map_or(false, |ext| ext == "jsonl"))
+            .collect();
+        // 按修改时间排序，最新的在前面
+        files.sort_by_key(|e| std::cmp::Reverse(e.metadata().and_then(|m| m.modified()).ok()));
+        
+        // 读取所有 session 文件
+        for file in files.iter().take(10) {
+            let path = file.path();
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                let filename = path.file_name().unwrap_or_default().to_string_lossy();
+                for line in content.lines().rev().take(50) {
+                    if !line.is_empty() {
+                        if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
+                            if json.get("type").and_then(|v| v.as_str()).unwrap_or("") == "message" {
+                                if let Some(msg_obj) = json.get("message").and_then(|v| v.as_object()) {
+                                    let role = msg_obj.get("role").and_then(|v| v.as_str()).unwrap_or("");
+                                    if let Some(content_arr) = msg_obj.get("content").and_then(|v| v.as_array()) {
+                                        for item in content_arr {
+                                            if let Some(text) = item.get("text").and_then(|v| v.as_str()) {
+                                                let ts_raw = json.get("timestamp").and_then(|v| v.as_str()).unwrap_or("");
+                                                let ts = if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(ts_raw) {
+                                                    let cst = dt.with_timezone(&chrono::FixedOffset::east(8 * 3600));
+                                                    cst.format("%Y-%m-%d %H:%M:%S").to_string()
+                                                } else if ts_raw.len() >= 19 {
+                                                    ts_raw[..19].replace("T", " ").to_string()
+                                                } else {
+                                                    "".to_string()
+                                                };
+                                                logs.push(format!("[{}] [{}] {}: {}", ts, &filename[..8], role, text.chars().take(150).collect::<String>()));
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -568,6 +587,24 @@ pub async fn get_logs() -> Json<ApiResponse<Vec<String>>> {
             }
         }
     }
+    
+    // 读取系统日志
+    if let Ok(entries) = std::fs::read_dir(logs_dir) {
+        for entry in entries.filter_map(|e| e.ok()) {
+            let path = entry.path();
+            if path.extension().map_or(false, |ext| ext == "log") {
+                if let Ok(content) = std::fs::read_to_string(&path) {
+                    let filename = path.file_name().unwrap_or_default().to_string_lossy();
+                    for line in content.lines().rev().take(30) {
+                        if !line.trim().is_empty() {
+                            logs.push(format!("[系统] {}: {}", filename, line.chars().take(200).collect::<String>()));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
     logs.reverse();
     ok_response(logs)
 }
@@ -792,19 +829,28 @@ pub async fn get_full_config() -> Json<ApiResponse<serde_json::Value>> {
     err_response("无法读取配置")
 }
 
-pub async fn list_cron() -> Json<ApiResponse<Vec<serde_json::Value>>> {
-    let cron_file = "/root/.openclaw/cron/jobs.json";
+pub async fn list_cron() -> Result<Json<serde_json::Value>, String> {
+    // 从系统crontab读取
+    let output = std::process::Command::new("bash")
+        .args(&["-c", "crontab -l 2>/dev/null"])
+        .output()
+        .map_err(|e| e.to_string())?;
+    
+    let content = String::from_utf8_lossy(&output.stdout);
     let mut jobs: Vec<serde_json::Value> = Vec::new();
     
-    if let Ok(content) = std::fs::read_to_string(cron_file) {
-        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-            if let Some(arr) = json.get("jobs").and_then(|v| v.as_array()) {
-                jobs = arr.clone();
-            }
+    for line in content.lines() {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') { continue; }
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() >= 6 {
+            let schedule = parts[0..5].join(" ");
+            let cmd = parts[5..].join(" ");
+            jobs.push(serde_json::json!({"schedule": schedule, "command": cmd, "enabled": true}));
         }
     }
     
-    ok_response(jobs)
+    Ok(Json(serde_json::json!({ "success": true, "data": jobs })))
 }
 
 

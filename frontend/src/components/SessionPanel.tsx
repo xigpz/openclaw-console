@@ -118,8 +118,8 @@ export default function SessionPanel() {
                     <span className="text-xs opacity-50">{formatTime(msg.timestamp || 0)}</span>
                   </div>
                   <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                    {msg.content?.[0]?.text?.slice(0, 200) || msg.content?.text?.slice(0, 200) || '[无内容]'}
-                    {(msg.content?.[0]?.text?.length > 200 || msg.content?.text?.length > 200) && '...'}
+                    {msg.message?.content?.[0]?.text?.slice(0, 200) || msg.message?.content?.text?.slice(0, 200) || msg.content?.[0]?.text?.slice(0, 200) || msg.content?.text?.slice(0, 200) || '[无内容]'}
+                    {(msg.message?.content?.[0]?.text?.length > 200 || msg.message?.content?.text?.length > 200) && '...'}
                   </div>
                 </div>
               ))}

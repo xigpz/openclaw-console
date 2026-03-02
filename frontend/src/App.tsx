@@ -79,9 +79,7 @@ const menuGroups: MenuGroup[] = [
   ]},
   { label: '帮助', icon: '📖', items: [
     { id: 'help', label: '帮助', icon: '📖' },
-    { id: 'install', label: '安装', icon: '📥' },
     { id: 'remote', label: '远程', icon: '🔗' },
-    { id: 'template', label: '模板', icon: '💡' },
   ]},
 ];
 
