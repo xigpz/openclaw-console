@@ -72,6 +72,12 @@ export default function SkillPanel() {
 
   return (
     <div className="space-y-4">
+      {toast && (
+        <div className={`fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`}>
+          {toast.msg}
+        </div>
+      )}
+
       <h2 className="text-lg font-medium">Skills 管理</h2>
 
       {/* 安装新 Skill */}
