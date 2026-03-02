@@ -87,11 +87,21 @@ function App() {
   const [activeTab, setActiveTab] = useState<TabId>('platforms');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [openKeys, setOpenKeys] = useState<string[]>(['install', 'core', 'ext', 'ops', 'data', 'tools', 'config', 'help']);
+  const [theme, setTheme] = useState<'dark'|'light'>(() => {
+    return (localStorage.getItem('theme') as 'dark'|'light') || 'dark';
+  });
 
   useEffect(() => {
     const loggedIn = localStorage.getItem('logged_in') === 'true';
     setIsLoggedIn(loggedIn);
-  }, []);
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+  };
 
   const handleLogin = () => setIsLoggedIn(true);
   const handleLogout = () => {
