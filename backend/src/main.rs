@@ -35,6 +35,7 @@ async fn main() {
         .route("/api/models", post(api::save_model))
         .route("/api/models/:id", get(api::get_model))
         .route("/api/models/:id", delete(api::delete_model))
+        .route("/api/models/:id/toggle", post(api::toggle_model))
         // Skills
         .route("/api/skills", get(api::list_skills))
         .route("/api/skills/install", post(api::install_skill))

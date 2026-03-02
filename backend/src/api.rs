@@ -5,7 +5,6 @@ use axum::{
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
-use futures_util::Stream;
 use std::process::Command;
 
 #[derive(Clone)]
@@ -242,6 +241,45 @@ pub async fn list_models(State(state): State<AppState>) -> Json<ApiResponse<Vec<
     ok_response(models)
 }
 
+pub async fn toggle_model(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Json<ApiResponse<Model>> {
+    let db = state.db.lock().unwrap();
+    
+    let current: Option<i32> = db.query_row(
+        "SELECT enabled FROM models WHERE id = ?1",
+        [&id],
+        |row| row.get(0),
+    ).ok();
+    
+    let new_enabled = current.map(|c| c == 0).unwrap_or(true);
+    
+    db.execute(
+        "UPDATE models SET enabled = ?1, updated_at = datetime('now') WHERE id = ?2",
+        rusqlite::params![new_enabled as i32, &id],
+    ).map_err(|e| e.to_string()).ok();
+    
+    let model = db.query_row(
+        "SELECT id, name, provider, api_key, base_url, model_id, enabled FROM models WHERE id = ?1",
+        [&id],
+        |row| Ok(Model {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            provider: row.get(2)?,
+            api_key: row.get(3).ok(),
+            base_url: row.get(4).ok(),
+            model_id: row.get(5).ok(),
+            enabled: row.get::<_, i32>(6)? == 1,
+        }),
+    );
+    
+    match model {
+        Ok(m) => ok_response(m),
+        Err(e) => err_response(&e.to_string()),
+    }
+}
+
 pub async fn get_model(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -316,12 +354,13 @@ pub struct Skill {
     pub version: Option<String>,
     pub installed: bool,
     pub enabled: bool,
+    pub description: Option<String>,
 }
 
 pub async fn list_skills(State(state): State<AppState>) -> Json<ApiResponse<Vec<Skill>>> {
     let db = state.db.lock().unwrap();
     let mut stmt = db
-        .prepare("SELECT id, name, source, spec, version, installed, enabled FROM skills ORDER BY name")
+        .prepare("SELECT id, name, source, spec, version, installed, enabled, description FROM skills ORDER BY name")
         .unwrap();
     let skills: Vec<Skill> = stmt
         .query_map([], |row| {
@@ -333,6 +372,7 @@ pub async fn list_skills(State(state): State<AppState>) -> Json<ApiResponse<Vec<
                 version: row.get(4).ok(),
                 installed: row.get::<_, i32>(5)? == 1,
                 enabled: row.get::<_, i32>(6)? == 1,
+                description: row.get(7).ok(),
             })
         })
         .unwrap()
@@ -380,30 +420,6 @@ pub async fn uninstall_skill(
 }
 
 // ============ 系统配置 ============
-
-#[derive(Debug, Serialize, Deserialize, Default)]
-pub struct ConfigItem {
-    pub key: String,
-    pub value: String,
-}
-
-pub async fn get_config(State(state): State<AppState>) -> Json<ApiResponse<Vec<ConfigItem>>> {
-    let db = state.db.lock().unwrap();
-    let mut stmt = db
-        .prepare("SELECT key, value FROM config ORDER BY key")
-        .unwrap();
-    let config: Vec<ConfigItem> = stmt
-        .query_map([], |row| {
-            Ok(ConfigItem {
-                key: row.get(0)?,
-                value: row.get(1)?,
-            })
-        })
-        .unwrap()
-        .filter_map(|r| r.ok())
-        .collect();
-    ok_response(config)
-}
 
 #[derive(Debug, Deserialize)]
 pub struct SaveConfigReq {
@@ -568,7 +584,7 @@ pub async fn get_logs() -> Json<ApiResponse<Vec<String>>> {
                                             if let Some(text) = item.get("text").and_then(|v| v.as_str()) {
                                                 let ts_raw = json.get("timestamp").and_then(|v| v.as_str()).unwrap_or("");
                                                 let ts = if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(ts_raw) {
-                                                    let cst = dt.with_timezone(&chrono::FixedOffset::east(8 * 3600));
+                                                    let cst = dt.with_timezone(&chrono::FixedOffset::east_opt(8 * 3600).unwrap());
                                                     cst.format("%Y-%m-%d %H:%M:%S").to_string()
                                                 } else if ts_raw.len() >= 19 {
                                                     ts_raw[..19].replace("T", " ").to_string()

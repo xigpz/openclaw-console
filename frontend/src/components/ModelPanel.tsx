@@ -26,9 +26,22 @@ export default function ModelPanel() {
     setLoading(false);
   };
 
+  const [toast, setToast] = useState<{msg: string, type: 'success' | 'error'} | null>(null);
+
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({msg, type});
+    setTimeout(() => setToast(null), 2000);
+  };
+
   const toggleModel = async (id: string) => {
-    await fetch('/api/models/' + id, { method: 'POST' });
-    loadModels();
+    const res = await fetch('/api/models/' + id + '/toggle', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      setModels(models.map(m => m.id === id ? data.data : m));
+      showToast(data.data.enabled ? '✅ 已启用' : '❌ 已禁用');
+    } else {
+      showToast('操作失败', 'error');
+    }
   };
 
   const saveConfig = async (id: string) => {
@@ -54,6 +67,12 @@ export default function ModelPanel() {
 
   return (
     <div className="space-y-6">
+      {toast && (
+        <div className={`fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`}>
+          {toast.msg}
+        </div>
+      )}
+
       <h2 className="text-2xl font-bold">🤖 模型配置</h2>
 
       {currentModel ? (

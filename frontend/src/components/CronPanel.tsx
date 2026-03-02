@@ -33,7 +33,7 @@ export default function CronPanel() {
 
       <div className="grid gap-4">
         {jobs.length === 0 ? (
-          <div className="glass-card p-8 text-center" style={{ color: 'var(--text-muted)' }}>暂无定时任务</div>
+          <div className="glass-card p-8 text-center" style={{ color: 'var(--text-muted)' }}>暂无定时任务，请添加</div>
         ) : jobs.map((job, i) => (
           <div key={i} className="glass-card p-4">
             <div className="flex justify-between items-start">

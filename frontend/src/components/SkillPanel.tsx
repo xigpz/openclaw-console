@@ -124,7 +124,7 @@ export default function SkillPanel() {
         ))}
         {skills.length === 0 && (
           <div className="text-[#a1a1aa] text-center py-8">
-            暂无 Skills，上方添加安装
+            暂无技能，请从市场安装
           </div>
         )}
       </div>
