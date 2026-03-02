@@ -54,10 +54,33 @@ export default function CronPanel() {
 
   return (
     <div className="space-y-6">
+      {toast && (
+        <div className={`fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`}>
+          {toast.msg}
+        </div>
+      )}
+
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>⏰ 定时任务</h2>
-        <button onClick={loadJobs} className="btn-glow">🔄 刷新</button>
+        <div class-2">
+         Name="flex gap <button onClick={() => setShowAdd(!showAdd)} className="btn-glow">➕ 添加</button>
+          <button onClick={loadJobs} className="btn-glow">🔄 刷新</button>
+        </div>
       </div>
+
+      {showAdd && (
+        <div className="glass-card p-4">
+          <h3 className="font-medium mb-3">添加新任务</h3>
+          <div className="space-y-3">
+            <input value={newJob.schedule} onChange={e => setNewJob({...newJob, schedule: e.target.value})} placeholder="Cron 表达式，如: */5 * * * *" className="input-glass w-full" />
+            <input value={newJob.command} onChange={e => setNewJob({...newJob, command: e.target.value})} placeholder="执行的命令" className="input-glass w-full" />
+            <div className="flex gap-2">
+              <button onClick={addJob} className="btn-glow flex-1">保存</button>
+              <button onClick={() => setShowAdd(false)} className="px-4 py-2 rounded-lg" style={{ background: 'var(--bg-elevated)' }}>取消</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4">
         {jobs.length === 0 ? (
