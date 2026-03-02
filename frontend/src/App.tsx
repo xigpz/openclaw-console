@@ -159,6 +159,9 @@ function App() {
         <div className="p-4 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
           <h1 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>OpenClaw</h1>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Console</p>
+          <button onClick={toggleTheme} className="mt-2 text-xs px-2 py-1 rounded" style={{ background: 'var(--bg-primary)', color: 'var(--text-muted)' }}>
+            {theme === 'dark' ? '☀️ 浅色' : '🌙 深色'}
+          </button>
         </div>
         
         <nav className="flex-1 p-2 overflow-y-auto">
