@@ -63,7 +63,17 @@ export default function PlatformPanel() {
     showToast('已切换');
   };
   const openEditor = (platform: Platform) => { setEditing(platform.name); const config = platform.config ? JSON.parse(platform.config) : {}; setFormData(config); setShowPassword({}); };
-  const saveConfig = async (name: string) => { await fetch('/api/platforms', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, config: JSON.stringify(formData) }) }); setEditing(null); loadPlatforms(); };
+  const saveConfig = async (name: string) => {
+    const platform = platforms.find(p => p.name === name);
+    await fetch('/api/platforms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, enabled: platform?.enabled || false, config: JSON.stringify(formData) })
+    });
+    setEditing(null);
+    loadPlatforms();
+    showToast('保存成功');
+  };
 
   // 按优先级排序
   const sortedPlatforms = [...platforms].sort((a, b) => {
