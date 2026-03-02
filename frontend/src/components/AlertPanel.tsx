@@ -42,6 +42,12 @@ export default function AlertPanel() {
         <button onClick={addAlert} className="btn-glow">➕ 添加</button>
       </div>
 
+      {alerts.length === 0 ? (
+        <div className="glass-card p-8 text-center" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-4xl mb-2">🔔</p>
+          <p>暂无告警配置</p>
+        </div>
+      ) : (
       <div className="grid gap-4">
         {alerts.map(alert => (
           <div key={alert.id} className="glass-card p-4 flex justify-between items-center">
