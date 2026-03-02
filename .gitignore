@@ -11,3 +11,16 @@ backend/*.env
 # 前端
 node_modules/
 dist/
+
+# 数据库
+*.db
+
+# 备份文件
+backup-*.json
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store

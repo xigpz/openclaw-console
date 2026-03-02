@@ -55,7 +55,11 @@ export default function SkillPanel() {
   };
 
   if (loading) {
-    return <div className="text-[#a1a1aa]">加载中...</div>;
+    return (
+      <div className="flex justify-center items-center py-12">
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
   }
 
   return (

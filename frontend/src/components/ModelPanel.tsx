@@ -56,14 +56,20 @@ export default function ModelPanel() {
     <div className="space-y-6">
       <h2 className="text-2xl font-bold">🤖 模型配置</h2>
 
-      <div className="glass-card p-4" style={{ background: 'rgba(16,185,129,0.1)' }}>
-        <h3 className="font-medium mb-2" style={{ color: 'var(--success)' }}>✅ 当前生效</h3>
-        <div className="flex items-center gap-2">
-          {currentModel ? (
-            <><span className="text-xl">{providerInfo[currentModel.provider]?.icon || '📦'}</span><span className="font-medium">{currentModel.name}</span></>
-          ) : <span style={{ color: 'var(--text-muted)' }}>未选择</span>}
+      {currentModel ? (
+        <div className="glass-card p-4" style={{ background: 'rgba(16,185,129,0.1)' }}>
+          <h3 className="font-medium mb-2" style={{ color: 'var(--success)' }}>✅ 当前生效</h3>
+          <div className="flex items-center gap-2">
+            <span className="text-xl">{providerInfo[currentModel.provider]?.icon || '📦'}</span>
+            <span className="font-medium">{currentModel.name}</span>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="glass-card p-4">
+          <h3 className="font-medium mb-2" style={{ color: 'var(--text-muted)' }}>⚠️ 未选择模型</h3>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>请从下方选择一个模型以启用</p>
+        </div>
+      )}
 
       {Object.entries(grouped).map(([provider, list]: [string, any]) => (
         <div key={provider} className="glass-card p-4">

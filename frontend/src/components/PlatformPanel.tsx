@@ -74,7 +74,13 @@ export default function PlatformPanel() {
       <h2 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>🔌 平台配置</h2>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {sortedPlatforms.map(platform => (
+        {sortedPlatforms.length === 0 ? (
+          <div className="col-span-full text-center py-12" style={{ color: 'var(--text-muted)' }}>
+            <p className="text-4xl mb-2">📭</p>
+            <p>暂无平台配置</p>
+          </div>
+        ) : (
+          sortedPlatforms.map(platform => (
           <div key={platform.name} className="glass-card p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
@@ -93,6 +99,7 @@ export default function PlatformPanel() {
             </button>
           </div>
         ))}
+        )}
       </div>
 
       {editing && (
