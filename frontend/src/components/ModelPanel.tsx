@@ -52,6 +52,7 @@ export default function ModelPanel() {
     });
     setEditing(null);
     loadModels();
+    showToast('保存成功');
   };
 
   const grouped = models.reduce((acc: any, m) => {
