@@ -155,7 +155,7 @@ function App() {
 
   return (
     <div className="flex min-h-screen" style={{ background: 'var(--bg-primary)' }}>
-      <aside className="w-52 shrink-0 flex flex-col" style={{ background: 'var(--bg-elevated)', borderRight: '1px solid var(--border-subtle)' }}>
+      <aside className="w-52 shrink-0 flex flex-col hidden md:flex" style={{ background: 'var(--bg-elevated)', borderRight: '1px solid var(--border-subtle)' }}>
         <div className="p-4 border-b" style={{ borderColor: 'var(--border-subtle)' }}>
           <h1 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>OpenClaw</h1>
           <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Console</p>
