@@ -67,6 +67,7 @@ export default function AlertPanel() {
           </div>
         ))}
       </div>
+      )}
 
       <div className="glass-card p-6">
         <h3 className="font-medium mb-3" style={{ color: 'var(--text-primary)' }}>通知方式</h3>
