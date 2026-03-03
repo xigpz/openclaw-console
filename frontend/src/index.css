@@ -83,6 +83,13 @@ body {
   border-radius: 16px;
 }
 
+/* 浅色主题玻璃卡片 */
+[data-theme="light"] .glass-card {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
 /* 输入框样式 */
 .input-glass {
   background: var(--bg-elevated);
@@ -214,3 +221,8 @@ body {
 .menu-item:hover { background: var(--bg-secondary); color: var(--text-primary); }
 .menu-item.active { background: var(--primary); color: white; }
 .menu-item span:first-child { font-size: 16px; }
+
+/* 浅色主题菜单 */
+[data-theme="light"] .menu-group-title:hover { background: var(--bg-secondary); }
+[data-theme="light"] .menu-item:hover { background: var(--bg-secondary); }
+[data-theme="light"] .menu-item.active { background: var(--primary); color: white; }
