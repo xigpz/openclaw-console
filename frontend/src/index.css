@@ -19,12 +19,12 @@
 
 [data-theme="light"] {
   --bg-primary: #ffffff;
-  --bg-elevated: #f9fafb;
-  --bg-secondary: #f3f4f6;
+  --bg-elevated: #ffffff;
+  --bg-secondary: #e5e7eb;
   --text-primary: #111827;
   --text-secondary: #4b5563;
-  --text-muted: #9ca3af;
-  --border-subtle: rgba(0, 0, 0, 0.08);
+  --text-muted: #6b7280;
+  --border-subtle: rgba(0, 0, 0, 0.12);
 }
 
 @supports (height: 100dvh) {
