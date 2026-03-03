@@ -2712,6 +2712,8 @@ export default function InstallPanel() {
   
     // TODO: 添加空状态
   
+    // TODO: 添加空状态
+  
     <div className="space-y-6">
       <h2 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>📥 一键安装</h2>
 
