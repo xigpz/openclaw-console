@@ -95,10 +95,50 @@ export default function TemplatePanel() {
     if (!confirmed) return;
     
     try {
+      // 1. 先备份当前配置
       await fetch('/api/backup', { method: 'POST' });
-      alert('✅ 已自动备份当前配置\n\n模板应用功能开发中...');
+      
+      // 2. 启用平台
+      for (const platform of tpl.platforms) {
+        await fetch(`/api/platform/${platform}/toggle`, { method: 'POST' });
+      }
+      
+      // 3. 设置默认模型
+      const modelRes = await fetch('/api/models');
+      const modelData = await modelRes.json();
+      const targetModel = modelData.data?.find((m: any) => m.name === tpl.model);
+      if (targetModel) {
+        await fetch('/api/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: 'default_model', value: tpl.model })
+        });
+      }
+      
+      // 4. 安装所需技能
+      const skillsRes = await fetch('/api/skills');
+      const skillsData = await skillsRes.json();
+      const installedSkills = skillsData.data?.map((s: any) => s.name) || [];
+      
+      for (const skill of tpl.skills || []) {
+        if (!installedSkills.includes(skill)) {
+          await fetch('/api/skills/install', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: skill })
+          });
+        }
+      }
+      
+      alert(`✅ 模板"${tpl.name}"应用成功！\n\n已配置：\n- 平台: ${tpl.platforms.join(', ')}\n- 模型: ${tpl.model}\n- 技能: ${tpl.skills.join(', ') || '无'}\n\n请重启Gateway使配置生效。`);
+      
+      // 提示重启
+      if (confirm('是否现在重启Gateway使配置生效？')) {
+        await fetch('/api/gateway/restart', { method: 'POST' });
+      }
     } catch (e) {
-      alert('❌ 操作失败');
+      console.error(e);
+      alert('❌ 操作失败: ' + e);
     }
   };
 
