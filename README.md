@@ -1,5 +1,7 @@
 # OpenClaw Console
 
+[![Hypercommit](https://img.shields.io/badge/Hypercommit-DB2475)](https://hypercommit.com/openclaw-console)
+
 OpenClaw 可视化管理后台 - 配置管理、模型配置、Skills 管理
 
 ## 功能
